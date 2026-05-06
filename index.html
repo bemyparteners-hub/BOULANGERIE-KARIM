@@ -116,6 +116,34 @@
       color: var(--accent-dark);
     }
 
+    .saved-weeks {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      color: var(--accent-dark);
+    }
+
+    .saved-weeks select {
+      width: auto;
+      min-width: 200px;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--text);
+      min-height: 40px;
+      font: inherit;
+      font-weight: 400;
+    }
+
+    .save-indicator {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 12px;
+      font-style: italic;
+    }
+
     .controls,
     .add-slot-section {
       background: var(--paper);
@@ -588,6 +616,8 @@
       .subtitle,
       .week-bar input,
       .week-bar label,
+      .saved-weeks,
+      .save-indicator,
       .day-hours {
         display: none !important;
       }
@@ -808,7 +838,12 @@
         Semaine
         <input type="week" id="weekInput" />
       </label>
+      <label class="saved-weeks">
+        Semaines enregistrées
+        <select id="savedWeeksSelect" aria-label="Charger une semaine enregistrée"></select>
+      </label>
       <div class="week-label" id="weekLabel"></div>
+      <span id="saveIndicator" class="save-indicator" aria-live="polite">Sauvegardé automatiquement</span>
     </section>
 
     <section class="controls" aria-label="Gestion des employés">
@@ -841,9 +876,12 @@
 
       <div class="actions">
         <button id="printBtn" type="button">Imprimer / exporter en PDF</button>
+        <button id="exportBtn" type="button" class="secondary">Exporter la sauvegarde</button>
+        <button id="importBtn" type="button" class="secondary">Importer une sauvegarde</button>
         <button id="clearSelectionBtn" type="button" class="secondary">Désélectionner</button>
         <button id="clearPlanningBtn" type="button" class="secondary">Vider la semaine</button>
         <button id="resetAllBtn" type="button" class="danger">Tout réinitialiser</button>
+        <input id="importInput" type="file" accept="application/json,.json" hidden />
         <span id="statusMessage" class="status-message" aria-live="polite"></span>
       </div>
     </section>
@@ -928,9 +966,11 @@
     ];
 
     // Clés de stockage local
-    const STORAGE_GLOBAL = "bakery_global";              // employés et préférences
+    const STORAGE_EMPLOYEES = "bakery_employees";        // liste des employés (commune à toutes les semaines)
+    const STORAGE_SETTINGS = "bakery_settings";          // préférences (semaine en cours, couleur courante, etc.)
     const STORAGE_SCHEDULE_PREFIX = "bakery_schedule_";  // un planning par semaine
-    const STORAGE_LEGACY = "planning-boulangerie-simple-v1"; // ancien format
+    const STORAGE_LEGACY_GLOBAL = "bakery_global";       // ancien format intermédiaire (employés + prefs en un objet)
+    const STORAGE_LEGACY_V1 = "planning-boulangerie-simple-v1"; // tout premier format
 
     /* ==============================
        État du planning
@@ -973,6 +1013,11 @@
 
     const weekInput = document.getElementById("weekInput");
     const weekLabel = document.getElementById("weekLabel");
+    const savedWeeksSelect = document.getElementById("savedWeeksSelect");
+    const saveIndicator = document.getElementById("saveIndicator");
+    const exportBtn = document.getElementById("exportBtn");
+    const importBtn = document.getElementById("importBtn");
+    const importInput = document.getElementById("importInput");
 
     /* ==============================
        Fonctions utilitaires temps
@@ -1127,40 +1172,68 @@
       return `${STORAGE_SCHEDULE_PREFIX}${weekKey}`;
     }
 
-    function saveGlobal() {
+    // Met à jour l'indicateur "Dernière sauvegarde : HH:MM" affiché à l'écran.
+    function markSaved() {
+      if (!saveIndicator) return;
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, "0");
+      const mm = String(now.getMinutes()).padStart(2, "0");
+      saveIndicator.textContent = `Dernière sauvegarde : ${hh}:${mm}`;
+    }
+
+    function saveEmployees() {
+      localStorage.setItem(STORAGE_EMPLOYEES, JSON.stringify(employees));
+      markSaved();
+    }
+
+    function saveSettings() {
       const data = {
-        employees,
         selectedEmployeeId,
         nextColorIndex,
         currentWeek: currentWeekKey
       };
-      localStorage.setItem(STORAGE_GLOBAL, JSON.stringify(data));
+      localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(data));
+      markSaved();
     }
 
     function saveSchedule() {
       if (!currentWeekKey) return;
       const data = { assignments, ranges };
       localStorage.setItem(scheduleStorageKey(currentWeekKey), JSON.stringify(data));
+      markSaved();
     }
 
-    // Sauvegarde tout (utilisé par les actions courantes).
+    // Sauvegarde tout (employés + préférences + planning de la semaine en cours).
     function saveData() {
-      saveGlobal();
+      saveEmployees();
+      saveSettings();
       saveSchedule();
     }
 
-    function loadGlobal() {
-      const raw = localStorage.getItem(STORAGE_GLOBAL);
+    function loadEmployees() {
+      const raw = localStorage.getItem(STORAGE_EMPLOYEES);
       if (!raw) return false;
       try {
         const data = JSON.parse(raw);
-        employees = Array.isArray(data.employees) ? data.employees : [];
+        employees = Array.isArray(data) ? data : [];
+        return true;
+      } catch (error) {
+        console.warn("Impossible de charger les employés.", error);
+        return false;
+      }
+    }
+
+    function loadSettings() {
+      const raw = localStorage.getItem(STORAGE_SETTINGS);
+      if (!raw) return false;
+      try {
+        const data = JSON.parse(raw);
         selectedEmployeeId = data.selectedEmployeeId || null;
-        nextColorIndex = Number.isInteger(data.nextColorIndex) ? data.nextColorIndex : employees.length;
+        nextColorIndex = Number.isInteger(data.nextColorIndex) ? data.nextColorIndex : 0;
         currentWeekKey = data.currentWeek || "";
         return true;
       } catch (error) {
-        console.warn("Impossible de charger les données globales.", error);
+        console.warn("Impossible de charger les préférences.", error);
         return false;
       }
     }
@@ -1183,36 +1256,60 @@
       }
     }
 
-    // Si une ancienne sauvegarde existe et qu'aucune nouvelle n'a encore été créée,
-    // on la rapatrie sur la semaine courante pour ne pas perdre les données.
+    /*
+      Migration des anciennes sauvegardes :
+      - bakery_global (objet unique) -> bakery_employees + bakery_settings
+      - planning-boulangerie-simple-v1 -> nouvelle structure, tout est rapatrié
+        sur la semaine ISO du jour pour ne pas perdre les données.
+      On ne migre que si la nouvelle structure n'existe pas encore.
+    */
     function migrateLegacyIfNeeded() {
-      if (localStorage.getItem(STORAGE_GLOBAL)) return;
-      const legacyRaw = localStorage.getItem(STORAGE_LEGACY);
-      if (!legacyRaw) return;
+      if (localStorage.getItem(STORAGE_EMPLOYEES) || localStorage.getItem(STORAGE_SETTINGS)) {
+        return;
+      }
 
-      try {
-        const legacy = JSON.parse(legacyRaw);
-        const today = new Date();
-        const iso = getISOWeek(today);
-        const weekKey = formatWeekKey(iso.year, iso.week);
+      // 1. Format intermédiaire bakery_global
+      const globalRaw = localStorage.getItem(STORAGE_LEGACY_GLOBAL);
+      if (globalRaw) {
+        try {
+          const data = JSON.parse(globalRaw);
+          const list = Array.isArray(data.employees) ? data.employees : [];
+          localStorage.setItem(STORAGE_EMPLOYEES, JSON.stringify(list));
+          localStorage.setItem(STORAGE_SETTINGS, JSON.stringify({
+            selectedEmployeeId: data.selectedEmployeeId || null,
+            nextColorIndex: Number.isInteger(data.nextColorIndex) ? data.nextColorIndex : list.length,
+            currentWeek: data.currentWeek || ""
+          }));
+          localStorage.removeItem(STORAGE_LEGACY_GLOBAL);
+          return;
+        } catch (error) {
+          console.warn("Migration bakery_global impossible.", error);
+        }
+      }
 
-        const legacyEmployees = Array.isArray(legacy.employees) ? legacy.employees : [];
-        const legacyAssignments = legacy.assignments || {};
-        const legacyRanges = Array.isArray(legacy.ranges) ? legacy.ranges : [];
+      // 2. Tout premier format
+      const v1Raw = localStorage.getItem(STORAGE_LEGACY_V1);
+      if (v1Raw) {
+        try {
+          const legacy = JSON.parse(v1Raw);
+          const today = new Date();
+          const iso = getISOWeek(today);
+          const weekKey = formatWeekKey(iso.year, iso.week);
 
-        localStorage.setItem(STORAGE_GLOBAL, JSON.stringify({
-          employees: legacyEmployees,
-          selectedEmployeeId: legacy.selectedEmployeeId || null,
-          nextColorIndex: Number.isInteger(legacy.nextColorIndex) ? legacy.nextColorIndex : legacyEmployees.length,
-          currentWeek: weekKey
-        }));
-
-        localStorage.setItem(scheduleStorageKey(weekKey), JSON.stringify({
-          assignments: legacyAssignments,
-          ranges: legacyRanges
-        }));
-      } catch (error) {
-        console.warn("Migration de l'ancienne sauvegarde impossible.", error);
+          const legacyEmployees = Array.isArray(legacy.employees) ? legacy.employees : [];
+          localStorage.setItem(STORAGE_EMPLOYEES, JSON.stringify(legacyEmployees));
+          localStorage.setItem(STORAGE_SETTINGS, JSON.stringify({
+            selectedEmployeeId: legacy.selectedEmployeeId || null,
+            nextColorIndex: Number.isInteger(legacy.nextColorIndex) ? legacy.nextColorIndex : legacyEmployees.length,
+            currentWeek: weekKey
+          }));
+          localStorage.setItem(scheduleStorageKey(weekKey), JSON.stringify({
+            assignments: legacy.assignments || {},
+            ranges: Array.isArray(legacy.ranges) ? legacy.ranges : []
+          }));
+        } catch (error) {
+          console.warn("Migration v1 impossible.", error);
+        }
       }
     }
 
@@ -1222,9 +1319,18 @@
       saveSchedule();
       currentWeekKey = newKey;
       loadSchedule(currentWeekKey);
-      saveGlobal();
+      saveSettings();
       updateWeekUI();
       renderAll();
+    }
+
+    // Liste triée des semaines actuellement présentes dans le localStorage.
+    function listSavedWeeks() {
+      return Object.keys(localStorage)
+        .filter(key => key.startsWith(STORAGE_SCHEDULE_PREFIX))
+        .map(key => key.slice(STORAGE_SCHEDULE_PREFIX.length))
+        .filter(week => parseWeekKey(week))
+        .sort();
     }
 
     function updateWeekUI() {
@@ -1711,12 +1817,170 @@
       summaryTable.innerHTML = html;
     }
 
+    function renderSavedWeeksList() {
+      const weeks = listSavedWeeks();
+      savedWeeksSelect.innerHTML = "";
+
+      if (weeks.length === 0) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "Aucune semaine enregistrée";
+        option.disabled = true;
+        option.selected = true;
+        savedWeeksSelect.appendChild(option);
+        savedWeeksSelect.disabled = true;
+        return;
+      }
+
+      savedWeeksSelect.disabled = false;
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "— charger une semaine —";
+      savedWeeksSelect.appendChild(placeholder);
+
+      weeks.forEach(week => {
+        const parsed = parseWeekKey(week);
+        const option = document.createElement("option");
+        option.value = week;
+        option.textContent = `Semaine ${parsed.week} — ${parsed.year}`;
+        if (week === currentWeekKey) option.selected = true;
+        savedWeeksSelect.appendChild(option);
+      });
+    }
+
     function renderAll() {
       renderEmployees();
       renderEmployeeSelectOptions();
       renderPlanningTable();
       renderRangesList();
       renderSummary();
+      renderSavedWeeksList();
+    }
+
+    /* ==============================
+       Export / Import de la sauvegarde
+       ============================== */
+
+    function buildBackupPayload() {
+      const schedules = {};
+      Object.keys(localStorage)
+        .filter(key => key.startsWith(STORAGE_SCHEDULE_PREFIX))
+        .forEach(key => {
+          const week = key.slice(STORAGE_SCHEDULE_PREFIX.length);
+          if (!parseWeekKey(week)) return;
+          try {
+            schedules[week] = JSON.parse(localStorage.getItem(key));
+          } catch (error) {
+            // On ignore les semaines corrompues.
+          }
+        });
+
+      return {
+        version: 2,
+        exportedAt: new Date().toISOString(),
+        employees,
+        settings: {
+          selectedEmployeeId,
+          nextColorIndex,
+          currentWeek: currentWeekKey
+        },
+        schedules
+      };
+    }
+
+    function exportBackup() {
+      // On s'assure que les données en mémoire sont écrites avant export.
+      saveData();
+
+      const payload = buildBackupPayload();
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "sauvegarde-planning-boulangerie.json";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showStatus("Sauvegarde exportée.");
+    }
+
+    function applyBackup(data) {
+      // On efface toutes les clés de l'application avant d'écrire la sauvegarde.
+      Object.keys(localStorage)
+        .filter(key =>
+          key === STORAGE_EMPLOYEES ||
+          key === STORAGE_SETTINGS ||
+          key === STORAGE_LEGACY_GLOBAL ||
+          key === STORAGE_LEGACY_V1 ||
+          key.startsWith(STORAGE_SCHEDULE_PREFIX)
+        )
+        .forEach(key => localStorage.removeItem(key));
+
+      employees = Array.isArray(data.employees) ? data.employees : [];
+
+      const settings = data.settings || {};
+      selectedEmployeeId = settings.selectedEmployeeId || null;
+      nextColorIndex = Number.isInteger(settings.nextColorIndex) ? settings.nextColorIndex : employees.length;
+      currentWeekKey = settings.currentWeek || "";
+
+      // Écriture des plannings hebdomadaires.
+      const schedules = data.schedules || {};
+      Object.keys(schedules).forEach(week => {
+        if (!parseWeekKey(week)) return;
+        const payload = schedules[week] || {};
+        localStorage.setItem(scheduleStorageKey(week), JSON.stringify({
+          assignments: payload.assignments || {},
+          ranges: Array.isArray(payload.ranges) ? payload.ranges : []
+        }));
+      });
+
+      // Si la semaine courante est invalide, on prend la semaine ISO du jour.
+      if (!parseWeekKey(currentWeekKey)) {
+        const iso = getISOWeek(new Date());
+        currentWeekKey = formatWeekKey(iso.year, iso.week);
+      }
+
+      loadSchedule(currentWeekKey);
+
+      // L'employé sélectionné peut ne plus exister.
+      if (selectedEmployeeId && !getEmployeeById(selectedEmployeeId)) {
+        selectedEmployeeId = null;
+      }
+
+      saveEmployees();
+      saveSettings();
+      updateWeekUI();
+      renderAll();
+    }
+
+    function importBackup(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        let data;
+        try {
+          data = JSON.parse(reader.result);
+        } catch (error) {
+          alert("Fichier de sauvegarde illisible (format JSON invalide).");
+          return;
+        }
+
+        if (!data || !Array.isArray(data.employees) || typeof data.schedules !== "object" || data.schedules === null) {
+          alert("Fichier de sauvegarde invalide.");
+          return;
+        }
+
+        if (!confirm("Remplacer toutes les données actuelles par cette sauvegarde ?")) {
+          return;
+        }
+
+        applyBackup(data);
+        showStatus("Sauvegarde importée.");
+      };
+      reader.onerror = () => {
+        alert("Lecture du fichier impossible.");
+      };
+      reader.readAsText(file);
     }
 
     /* ==============================
@@ -1803,7 +2067,13 @@
 
       // Suppression de toutes les clés de stockage de l'application.
       Object.keys(localStorage)
-        .filter(key => key === STORAGE_GLOBAL || key === STORAGE_LEGACY || key.startsWith(STORAGE_SCHEDULE_PREFIX))
+        .filter(key =>
+          key === STORAGE_EMPLOYEES ||
+          key === STORAGE_SETTINGS ||
+          key === STORAGE_LEGACY_GLOBAL ||
+          key === STORAGE_LEGACY_V1 ||
+          key.startsWith(STORAGE_SCHEDULE_PREFIX)
+        )
         .forEach(key => localStorage.removeItem(key));
 
       saveData();
@@ -1883,15 +2153,39 @@
       showStatus(`Semaine ${parseWeekKey(newKey).week} chargée.`);
     });
 
+    // Sélection d'une semaine déjà enregistrée.
+    savedWeeksSelect.addEventListener("change", () => {
+      const value = savedWeeksSelect.value;
+      if (!value || !parseWeekKey(value)) return;
+      changeWeek(value);
+      showStatus(`Semaine ${parseWeekKey(value).week} chargée.`);
+    });
+
+    exportBtn.addEventListener("click", () => {
+      exportBackup();
+    });
+
+    importBtn.addEventListener("click", () => {
+      // On réinitialise pour autoriser la sélection du même fichier deux fois.
+      importInput.value = "";
+      importInput.click();
+    });
+
+    importInput.addEventListener("change", () => {
+      const file = importInput.files && importInput.files[0];
+      if (file) importBackup(file);
+    });
+
     /* ==============================
        Initialisation au chargement
        ============================== */
 
-    // 1. Migration éventuelle de l'ancienne sauvegarde unique.
+    // 1. Migration éventuelle des anciennes sauvegardes.
     migrateLegacyIfNeeded();
 
-    // 2. Chargement des données globales (employés, semaine en cours).
-    loadGlobal();
+    // 2. Chargement des employés et des préférences.
+    loadEmployees();
+    loadSettings();
 
     // 3. Si aucune semaine n'est définie, on prend la semaine ISO actuelle.
     if (!parseWeekKey(currentWeekKey)) {
@@ -1916,7 +2210,8 @@
     renderDaySelectOptions();
     refreshTimeOptions();
     updateWeekUI();
-    saveGlobal();
+    saveEmployees();
+    saveSettings();
     renderAll();
   </script>
 </body>
