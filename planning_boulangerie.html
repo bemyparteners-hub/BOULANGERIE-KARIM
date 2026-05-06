@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Planning hebdomadaire - Boulangerie</title>
+  <style>
+    /*
+      Planning hebdomadaire simple pour boulangerie
+      - Tout est dans ce fichier : HTML + CSS + JavaScript
+      - Fonctionne localement en ouvrant ce fichier dans un navigateur
+      - Impression prévue en A4 paysage via le bouton "Imprimer / PDF"
+    */
+
+    :root {
+      --bg: #f6f3ee;
+      --paper: #ffffff;
+      --text: #2d2a26;
+      --muted: #6d665f;
+      --border: #d8d0c7;
+      --header: #efe6db;
+      --closed: #eee9e3;
+      --accent: #6f4e37;
+      --accent-dark: #4e3424;
+      --danger: #a33a2a;
+      --shadow: 0 10px 25px rgba(45, 42, 38, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .page {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 26px;
+      color: var(--accent-dark);
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.4;
+      font-size: 14px;
+    }
+
+    .controls {
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: minmax(280px, 430px) 1fr;
+      gap: 16px;
+    }
+
+    .panel-title {
+      margin: 0 0 10px;
+      font-size: 16px;
+      color: var(--accent-dark);
+    }
+
+    .employee-form {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr auto auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    input,
+    select,
+    button {
+      font: inherit;
+    }
+
+    input[type="text"],
+    select {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 10px;
+      background: #fff;
+      color: var(--text);
+    }
+
+    input[type="color"] {
+      width: 44px;
+      height: 38px;
+      padding: 2px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 9px 12px;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+    }
+
+    button:hover {
+      filter: brightness(0.95);
+    }
+
+    button.secondary {
+      background: #ddd2c7;
+      color: var(--accent-dark);
+    }
+
+    button.danger {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    button.small {
+      padding: 6px 8px;
+      font-size: 12px;
+      border-radius: 8px;
+    }
+
+    .help {
+      margin: 10px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .employee-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      min-height: 42px;
+    }
+
+    .employee-card {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: 2px solid transparent;
+      background: #faf8f5;
+      color: var(--text);
+      padding: 7px 8px;
+      border-radius: 12px;
+      cursor: pointer;
+      min-height: 40px;
+    }
+
+    .employee-card.selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(111, 78, 55, 0.12);
+    }
+
+    .employee-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      flex: 0 0 auto;
+    }
+
+    .employee-name {
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .employee-status {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .employee-card input[type="color"] {
+      width: 30px;
+      height: 28px;
+      border-radius: 8px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+      align-items: center;
+    }
+
+    .status-message {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .planning-wrap,
+    .summary-wrap {
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 12px;
+      margin-bottom: 16px;
+      overflow: auto;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    .planning-table {
+      table-layout: fixed;
+      min-width: 1080px;
+      font-size: 12px;
+    }
+
+    .planning-table th,
+    .planning-table td {
+      border: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .planning-table thead th {
+      background: var(--header);
+      color: var(--accent-dark);
+      padding: 7px 4px;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .time-col {
+      width: 105px;
+      background: #fbf8f4;
+      color: var(--accent-dark);
+      font-weight: 700;
+      text-align: center;
+      padding: 5px 3px;
+    }
+
+    .day-hours {
+      display: block;
+      color: var(--muted);
+      font-weight: 400;
+      font-size: 11px;
+      margin-top: 2px;
+    }
+
+    .slot-cell {
+      min-height: 30px;
+      height: 30px;
+      padding: 2px;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .slot-cell:hover {
+      outline: 2px solid rgba(111, 78, 55, 0.25);
+      outline-offset: -2px;
+    }
+
+    .slot-cell.closed {
+      background: repeating-linear-gradient(
+        45deg,
+        var(--closed),
+        var(--closed) 6px,
+        #f7f3ee 6px,
+        #f7f3ee 12px
+      );
+      cursor: not-allowed;
+    }
+
+    .slot-cell.closed:hover {
+      outline: none;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px;
+      align-items: flex-start;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      border-radius: 6px;
+      padding: 2px 5px;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.15;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+    }
+
+    .summary-wrap h2 {
+      margin: 0 0 10px;
+      color: var(--accent-dark);
+      font-size: 18px;
+    }
+
+    .summary-table th,
+    .summary-table td {
+      border: 1px solid var(--border);
+      padding: 8px;
+      text-align: left;
+    }
+
+    .summary-table th {
+      background: var(--header);
+      color: var(--accent-dark);
+    }
+
+    .summary-employee {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+    }
+
+    .total-row td {
+      font-weight: 700;
+      background: #fbf8f4;
+    }
+
+    .empty-state {
+      color: var(--muted);
+      font-style: italic;
+      padding: 8px 0;
+    }
+
+    /* Impression / export PDF : utiliser le navigateur en mode paysage */
+    @page {
+      size: A4 landscape;
+      margin: 8mm;
+    }
+
+    @media print {
+      body {
+        background: #fff;
+        color: #000;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .page {
+        max-width: none;
+        padding: 0;
+      }
+
+      .controls,
+      .actions,
+      .help,
+      .status-message {
+        display: none !important;
+      }
+
+      .top-bar {
+        margin-bottom: 8px;
+      }
+
+      h1 {
+        font-size: 18px;
+        margin-bottom: 2px;
+      }
+
+      .subtitle {
+        font-size: 10px;
+      }
+
+      .planning-wrap,
+      .summary-wrap {
+        box-shadow: none;
+        border: 0;
+        border-radius: 0;
+        padding: 0;
+        margin-bottom: 8px;
+        overflow: visible;
+        page-break-inside: avoid;
+      }
+
+      .planning-table {
+        min-width: 0;
+        width: 100%;
+        font-size: 8.5px;
+      }
+
+      .planning-table thead th {
+        position: static;
+        padding: 3px 2px;
+      }
+
+      .time-col {
+        width: 72px;
+        padding: 2px;
+      }
+
+      .slot-cell {
+        height: 17px;
+        min-height: 17px;
+        padding: 1px;
+      }
+
+      .chip {
+        font-size: 7.5px;
+        padding: 1px 3px;
+        border-radius: 4px;
+      }
+
+      .summary-wrap h2 {
+        font-size: 13px;
+        margin-bottom: 4px;
+      }
+
+      .summary-table {
+        font-size: 10px;
+      }
+
+      .summary-table th,
+      .summary-table td {
+        padding: 4px 5px;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .top-bar,
+      .controls-grid {
+        grid-template-columns: 1fr;
+        display: block;
+      }
+
+      .employee-form {
+        grid-template-columns: 1fr 1fr auto;
+      }
+
+      .employee-form button[type="submit"] {
+        grid-column: 1 / -1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="top-bar">
+      <div>
+        <h1>Planning hebdomadaire - Boulangerie</h1>
+        <p class="subtitle">
+          Créneaux de 30 minutes. Ouverture : lundi à vendredi 4h00-20h30, samedi 5h00-20h30, dimanche 5h00-14h30.
+        </p>
+      </div>
+    </header>
+
+    <section class="controls" aria-label="Gestion du planning">
+      <div class="controls-grid">
+        <div>
+          <h2 class="panel-title">Ajouter un employé</h2>
+          <form id="employeeForm" class="employee-form">
+            <input id="employeeName" type="text" placeholder="Prénom ou nom" autocomplete="off" required />
+            <select id="employeeRole" aria-label="Statut">
+              <option value="Boulanger">Boulanger</option>
+              <option value="Vendeur">Vendeur</option>
+              <option value="Vendeuse">Vendeuse</option>
+            </select>
+            <input id="employeeColor" type="color" aria-label="Couleur de l'employé" />
+            <button type="submit">Ajouter</button>
+          </form>
+          <p class="help">
+            Astuce : une couleur est proposée automatiquement. Vous pouvez la changer avant ou après l'ajout.
+          </p>
+        </div>
+
+        <div>
+          <h2 class="panel-title">Employé sélectionné</h2>
+          <div id="employeeList" class="employee-list"></div>
+          <p class="help">
+            Cliquez sur un employé, puis cliquez sur les cases du planning pour l'ajouter ou le retirer. Clic droit sur une case : vider le créneau.
+          </p>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="printBtn" type="button">Imprimer / exporter en PDF</button>
+        <button id="clearSelectionBtn" type="button" class="secondary">Désélectionner</button>
+        <button id="clearPlanningBtn" type="button" class="secondary">Vider le planning</button>
+        <button id="resetAllBtn" type="button" class="danger">Tout réinitialiser</button>
+        <span id="statusMessage" class="status-message"></span>
+      </div>
+    </section>
+
+    <section class="planning-wrap" aria-label="Tableau du planning">
+      <table id="planningTable" class="planning-table"></table>
+    </section>
+
+    <section class="summary-wrap" aria-label="Récapitulatif des heures">
+      <h2>Récapitulatif des heures travaillées</h2>
+      <table id="summaryTable" class="summary-table"></table>
+    </section>
+  </main>
+
+  <script>
+    /* ==============================
+       Réglages principaux du planning
+       ============================== */
+
+    // Jours et horaires d'ouverture. Modifier ici si les horaires changent.
+    const DAYS = [
+      { key: "lundi", label: "Lundi", open: "04:00", close: "20:30" },
+      { key: "mardi", label: "Mardi", open: "04:00", close: "20:30" },
+      { key: "mercredi", label: "Mercredi", open: "04:00", close: "20:30" },
+      { key: "jeudi", label: "Jeudi", open: "04:00", close: "20:30" },
+      { key: "vendredi", label: "Vendredi", open: "04:00", close: "20:30" },
+      { key: "samedi", label: "Samedi", open: "05:00", close: "20:30" },
+      { key: "dimanche", label: "Dimanche", open: "05:00", close: "14:30" }
+    ];
+
+    // Le planning est en créneaux de 30 minutes.
+    const SLOT_MINUTES = 30;
+
+    // Heure minimale et maximale affichées dans le tableau.
+    const FIRST_DISPLAYED_TIME = "04:00";
+    const LAST_DISPLAYED_TIME = "20:30";
+
+    // Palette utilisée pour proposer automatiquement une couleur.
+    const COLOR_PALETTE = [
+      "#f4a261", "#2a9d8f", "#e76f51", "#457b9d", "#8e7cc3",
+      "#e9c46a", "#6d597a", "#90be6d", "#f28482", "#577590",
+      "#bc6c25", "#4d908e", "#b56576", "#277da1"
+    ];
+
+    const STORAGE_KEY = "planning-boulangerie-simple-v1";
+
+    /* ==============================
+       État du planning
+       ============================== */
+
+    let employees = [];
+
+    // Format : { "lundi_240": ["idEmploye1", "idEmploye2"] }
+    // 240 = nombre de minutes depuis minuit, ici 04:00.
+    let assignments = {};
+
+    let selectedEmployeeId = null;
+    let nextColorIndex = 0;
+
+    /* ==============================
+       Sélection des éléments HTML
+       ============================== */
+
+    const employeeForm = document.getElementById("employeeForm");
+    const employeeNameInput = document.getElementById("employeeName");
+    const employeeRoleInput = document.getElementById("employeeRole");
+    const employeeColorInput = document.getElementById("employeeColor");
+    const employeeList = document.getElementById("employeeList");
+    const planningTable = document.getElementById("planningTable");
+    const summaryTable = document.getElementById("summaryTable");
+    const statusMessage = document.getElementById("statusMessage");
+
+    /* ==============================
+       Fonctions utilitaires
+       ============================== */
+
+    function timeToMinutes(time) {
+      const [hours, minutes] = time.split(":").map(Number);
+      return hours * 60 + minutes;
+    }
+
+    function minutesToTime(minutes) {
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return `${String(hours).padStart(2, "0")}h${String(mins).padStart(2, "0")}`;
+    }
+
+    function formatSlot(startMinutes) {
+      return `${minutesToTime(startMinutes)} - ${minutesToTime(startMinutes + SLOT_MINUTES)}`;
+    }
+
+    function formatHours(totalMinutes) {
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      return minutes === 0 ? `${hours}h` : `${hours}h${String(minutes).padStart(2, "0")}`;
+    }
+
+    function getCellKey(dayKey, startMinutes) {
+      return `${dayKey}_${startMinutes}`;
+    }
+
+    function getEmployeeById(id) {
+      return employees.find(employee => employee.id === id);
+    }
+
+    function getNextColor() {
+      const color = COLOR_PALETTE[nextColorIndex % COLOR_PALETTE.length];
+      nextColorIndex += 1;
+      return color;
+    }
+
+    function generateId() {
+      if (window.crypto && crypto.randomUUID) {
+        return crypto.randomUUID();
+      }
+      return `emp_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    }
+
+    // Choisit une couleur de texte lisible selon la couleur de fond.
+    function getReadableTextColor(hexColor) {
+      const hex = hexColor.replace("#", "");
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+      return brightness > 150 ? "#1f1f1f" : "#ffffff";
+    }
+
+    function showStatus(message) {
+      statusMessage.textContent = message;
+      window.clearTimeout(showStatus.timeout);
+      showStatus.timeout = window.setTimeout(() => {
+        statusMessage.textContent = "";
+      }, 2200);
+    }
+
+    /* ==============================
+       Sauvegarde locale
+       ============================== */
+
+    function saveData() {
+      const data = {
+        employees,
+        assignments,
+        selectedEmployeeId,
+        nextColorIndex
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function loadData() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return;
+
+      try {
+        const data = JSON.parse(saved);
+        employees = Array.isArray(data.employees) ? data.employees : [];
+        assignments = data.assignments || {};
+        selectedEmployeeId = data.selectedEmployeeId || null;
+        nextColorIndex = Number.isInteger(data.nextColorIndex) ? data.nextColorIndex : employees.length;
+      } catch (error) {
+        console.warn("Impossible de charger la sauvegarde locale.", error);
+      }
+    }
+
+    /* ==============================
+       Rendu de la liste des employés
+       ============================== */
+
+    function renderEmployees() {
+      employeeList.innerHTML = "";
+
+      if (employees.length === 0) {
+        employeeList.innerHTML = `<div class="empty-state">Ajoutez un employé pour commencer.</div>`;
+        return;
+      }
+
+      employees.forEach(employee => {
+        const card = document.createElement("div");
+        card.className = "employee-card";
+        if (employee.id === selectedEmployeeId) {
+          card.classList.add("selected");
+        }
+
+        card.addEventListener("click", () => {
+          selectedEmployeeId = employee.id;
+          saveData();
+          renderAll();
+          showStatus(`${employee.name} sélectionné(e).`);
+        });
+
+        const dot = document.createElement("span");
+        dot.className = "employee-dot";
+        dot.style.backgroundColor = employee.color;
+
+        const name = document.createElement("span");
+        name.className = "employee-name";
+        name.textContent = employee.name;
+
+        const status = document.createElement("span");
+        status.className = "employee-status";
+        status.textContent = employee.role;
+
+        const colorInput = document.createElement("input");
+        colorInput.type = "color";
+        colorInput.value = employee.color;
+        colorInput.title = "Modifier la couleur";
+        colorInput.addEventListener("click", event => event.stopPropagation());
+        colorInput.addEventListener("change", event => {
+          employee.color = event.target.value;
+          saveData();
+          renderAll();
+        });
+
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.className = "small danger";
+        deleteButton.textContent = "Supprimer";
+        deleteButton.title = "Supprimer l'employé";
+        deleteButton.addEventListener("click", event => {
+          event.stopPropagation();
+          deleteEmployee(employee.id);
+        });
+
+        card.append(dot, name, status, colorInput, deleteButton);
+        employeeList.appendChild(card);
+      });
+    }
+
+    function deleteEmployee(employeeId) {
+      const employee = getEmployeeById(employeeId);
+      const employeeName = employee ? employee.name : "Employé";
+
+      if (!confirm(`Supprimer ${employeeName} et ses créneaux du planning ?`)) {
+        return;
+      }
+
+      employees = employees.filter(employee => employee.id !== employeeId);
+
+      Object.keys(assignments).forEach(cellKey => {
+        assignments[cellKey] = assignments[cellKey].filter(id => id !== employeeId);
+        if (assignments[cellKey].length === 0) {
+          delete assignments[cellKey];
+        }
+      });
+
+      if (selectedEmployeeId === employeeId) {
+        selectedEmployeeId = null;
+      }
+
+      saveData();
+      renderAll();
+      showStatus(`${employeeName} supprimé(e).`);
+    }
+
+    /* ==============================
+       Rendu du tableau de planning
+       ============================== */
+
+    function renderPlanningTable() {
+      const first = timeToMinutes(FIRST_DISPLAYED_TIME);
+      const last = timeToMinutes(LAST_DISPLAYED_TIME);
+
+      let html = "";
+      html += "<thead><tr>";
+      html += "<th class='time-col'>Horaire</th>";
+      DAYS.forEach(day => {
+        html += `<th>${day.label}<span class="day-hours">${minutesToTime(timeToMinutes(day.open))}-${minutesToTime(timeToMinutes(day.close))}</span></th>`;
+      });
+      html += "</tr></thead>";
+
+      html += "<tbody>";
+      for (let start = first; start < last; start += SLOT_MINUTES) {
+        html += `<tr><th class="time-col">${formatSlot(start)}</th>`;
+
+        DAYS.forEach(day => {
+          const open = timeToMinutes(day.open);
+          const close = timeToMinutes(day.close);
+          const end = start + SLOT_MINUTES;
+          const isOpen = start >= open && end <= close;
+          const cellKey = getCellKey(day.key, start);
+          const assignedIds = assignments[cellKey] || [];
+
+          if (!isOpen) {
+            html += `<td class="slot-cell closed" title="Fermé"></td>`;
+            return;
+          }
+
+          const chips = assignedIds
+            .map(id => getEmployeeById(id))
+            .filter(Boolean)
+            .map(employee => {
+              const textColor = getReadableTextColor(employee.color);
+              return `<span class="chip" style="background:${employee.color};color:${textColor};" title="${employee.name} - ${employee.role}">${employee.name}</span>`;
+            })
+            .join("");
+
+          html += `<td class="slot-cell" data-day="${day.key}" data-start="${start}" title="Cliquer pour ajouter/retirer l'employé sélectionné"><div class="chips">${chips}</div></td>`;
+        });
+
+        html += "</tr>";
+      }
+      html += "</tbody>";
+
+      planningTable.innerHTML = html;
+    }
+
+    function toggleEmployeeOnCell(dayKey, startMinutes) {
+      if (!selectedEmployeeId) {
+        showStatus("Sélectionnez d'abord un employé.");
+        return;
+      }
+
+      const selectedEmployee = getEmployeeById(selectedEmployeeId);
+      if (!selectedEmployee) {
+        selectedEmployeeId = null;
+        showStatus("Employé introuvable. Sélectionnez-en un autre.");
+        return;
+      }
+
+      const cellKey = getCellKey(dayKey, startMinutes);
+      const currentIds = assignments[cellKey] || [];
+
+      if (currentIds.includes(selectedEmployeeId)) {
+        assignments[cellKey] = currentIds.filter(id => id !== selectedEmployeeId);
+        if (assignments[cellKey].length === 0) {
+          delete assignments[cellKey];
+        }
+      } else {
+        assignments[cellKey] = [...currentIds, selectedEmployeeId];
+      }
+
+      saveData();
+      renderAll();
+    }
+
+    function clearCell(dayKey, startMinutes) {
+      const cellKey = getCellKey(dayKey, startMinutes);
+      if (assignments[cellKey]) {
+        delete assignments[cellKey];
+        saveData();
+        renderAll();
+        showStatus("Créneau vidé.");
+      }
+    }
+
+    /* ==============================
+       Récapitulatif des heures
+       ============================== */
+
+    function renderSummary() {
+      if (employees.length === 0) {
+        summaryTable.innerHTML = `
+          <tbody>
+            <tr><td class="empty-state">Aucun employé ajouté.</td></tr>
+          </tbody>
+        `;
+        return;
+      }
+
+      const minutesByEmployee = {};
+      employees.forEach(employee => {
+        minutesByEmployee[employee.id] = 0;
+      });
+
+      Object.values(assignments).forEach(employeeIds => {
+        employeeIds.forEach(employeeId => {
+          if (minutesByEmployee[employeeId] !== undefined) {
+            minutesByEmployee[employeeId] += SLOT_MINUTES;
+          }
+        });
+      });
+
+      const totalMinutes = Object.values(minutesByEmployee).reduce((sum, minutes) => sum + minutes, 0);
+
+      let html = `
+        <thead>
+          <tr>
+            <th>Employé</th>
+            <th>Statut</th>
+            <th>Heures semaine</th>
+          </tr>
+        </thead>
+        <tbody>
+      `;
+
+      employees.forEach(employee => {
+        html += `
+          <tr>
+            <td>
+              <span class="summary-employee">
+                <span class="employee-dot" style="background:${employee.color}"></span>
+                ${employee.name}
+              </span>
+            </td>
+            <td>${employee.role}</td>
+            <td>${formatHours(minutesByEmployee[employee.id])}</td>
+          </tr>
+        `;
+      });
+
+      html += `
+          <tr class="total-row">
+            <td colspan="2">Total équipe</td>
+            <td>${formatHours(totalMinutes)}</td>
+          </tr>
+        </tbody>
+      `;
+
+      summaryTable.innerHTML = html;
+    }
+
+    function renderAll() {
+      renderEmployees();
+      renderPlanningTable();
+      renderSummary();
+    }
+
+    /* ==============================
+       Événements utilisateur
+       ============================== */
+
+    employeeForm.addEventListener("submit", event => {
+      event.preventDefault();
+
+      const name = employeeNameInput.value.trim();
+      const role = employeeRoleInput.value;
+      const color = employeeColorInput.value;
+
+      if (!name) {
+        showStatus("Indiquez un prénom ou un nom.");
+        return;
+      }
+
+      const employee = {
+        id: generateId(),
+        name,
+        role,
+        color
+      };
+
+      employees.push(employee);
+      selectedEmployeeId = employee.id;
+
+      employeeNameInput.value = "";
+      employeeColorInput.value = getNextColor();
+
+      saveData();
+      renderAll();
+      showStatus(`${employee.name} ajouté(e) et sélectionné(e).`);
+    });
+
+    planningTable.addEventListener("click", event => {
+      const cell = event.target.closest(".slot-cell");
+      if (!cell || cell.classList.contains("closed")) return;
+      toggleEmployeeOnCell(cell.dataset.day, Number(cell.dataset.start));
+    });
+
+    planningTable.addEventListener("contextmenu", event => {
+      const cell = event.target.closest(".slot-cell");
+      if (!cell || cell.classList.contains("closed")) return;
+      event.preventDefault();
+      clearCell(cell.dataset.day, Number(cell.dataset.start));
+    });
+
+    document.getElementById("printBtn").addEventListener("click", () => {
+      window.print();
+    });
+
+    document.getElementById("clearSelectionBtn").addEventListener("click", () => {
+      selectedEmployeeId = null;
+      saveData();
+      renderAll();
+      showStatus("Aucun employé sélectionné.");
+    });
+
+    document.getElementById("clearPlanningBtn").addEventListener("click", () => {
+      if (!confirm("Vider uniquement les créneaux du planning ? Les employés seront conservés.")) {
+        return;
+      }
+      assignments = {};
+      saveData();
+      renderAll();
+      showStatus("Planning vidé.");
+    });
+
+    document.getElementById("resetAllBtn").addEventListener("click", () => {
+      if (!confirm("Tout réinitialiser : employés, couleurs et planning ?")) {
+        return;
+      }
+      employees = [];
+      assignments = {};
+      selectedEmployeeId = null;
+      nextColorIndex = 0;
+      employeeColorInput.value = getNextColor();
+      localStorage.removeItem(STORAGE_KEY);
+      renderAll();
+      showStatus("Planning réinitialisé.");
+    });
+
+    /* ==============================
+       Initialisation au chargement
+       ============================== */
+
+    loadData();
+
+    // Couleur proposée pour le prochain employé.
+    if (!employeeColorInput.value || employeeColorInput.value === "#000000") {
+      employeeColorInput.value = getNextColor();
+    } else {
+      employeeColorInput.value = COLOR_PALETTE[nextColorIndex % COLOR_PALETTE.length];
+    }
+
+    // Si l'employé sélectionné n'existe plus, on désélectionne.
+    if (selectedEmployeeId && !getEmployeeById(selectedEmployeeId)) {
+      selectedEmployeeId = null;
+    }
+
+    renderAll();
+  </script>
+</body>
+</html>
