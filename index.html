@@ -6,10 +6,10 @@
   <title>Planning hebdomadaire - Boulangerie</title>
   <style>
     /*
-      Planning hebdomadaire simple pour boulangerie
+      Planning hebdomadaire pour boulangerie
       - Tout est dans ce fichier : HTML + CSS + JavaScript
       - Fonctionne localement en ouvrant ce fichier dans un navigateur
-      - Impression prévue en A4 paysage via le bouton "Imprimer / PDF"
+      - Impression A4 paysage : seulement le titre, la semaine et le planning
       - Interface adaptée ordinateur et mobile
     */
 
@@ -67,6 +67,47 @@
       color: var(--muted);
       line-height: 1.4;
       font-size: 14px;
+    }
+
+    /* Bandeau "Semaine" */
+    .week-bar {
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 12px 14px;
+      margin-bottom: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .week-bar label {
+      font-weight: 700;
+      color: var(--accent-dark);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .week-bar input[type="week"] {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 10px;
+      background: #fff;
+      color: var(--text);
+      min-height: 40px;
+      font: inherit;
+    }
+
+    .week-label {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .week-label strong {
+      color: var(--accent-dark);
     }
 
     .controls,
@@ -351,6 +392,27 @@
       z-index: 1;
     }
 
+    .day-label {
+      display: block;
+      font-size: 13px;
+    }
+
+    .day-date {
+      display: block;
+      font-weight: 400;
+      color: var(--muted);
+      font-size: 11px;
+      margin-top: 2px;
+    }
+
+    .day-hours {
+      display: block;
+      color: var(--muted);
+      font-weight: 400;
+      font-size: 11px;
+      margin-top: 1px;
+    }
+
     .time-col {
       width: 105px;
       background: #fbf8f4;
@@ -360,18 +422,11 @@
       padding: 5px 3px;
     }
 
-    .day-hours {
-      display: block;
-      color: var(--muted);
-      font-weight: 400;
-      font-size: 11px;
-      margin-top: 2px;
-    }
-
+    /* Cellules de planning : grille 2x2 pour afficher jusqu'à 4 employés */
     .slot-cell {
-      min-height: 32px;
-      height: 32px;
-      padding: 2px;
+      min-height: 64px;
+      height: 64px;
+      padding: 3px;
       background: #fff;
       cursor: pointer;
     }
@@ -396,26 +451,31 @@
       outline: none;
     }
 
+    /* Grille interne 2x2 : jusqu'à 4 emplacements par créneau */
     .chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 2px;
-      align-items: flex-start;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 3px;
+      width: 100%;
+      height: 100%;
+      min-height: 56px;
     }
 
     .chip {
-      display: inline-flex;
+      display: flex;
       align-items: center;
-      max-width: 100%;
+      justify-content: center;
       border-radius: 6px;
-      padding: 2px 5px;
-      font-size: 11px;
+      padding: 2px 4px;
+      font-size: 12px;
       font-weight: 700;
-      line-height: 1.15;
+      line-height: 1.1;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       border: 1px solid rgba(0, 0, 0, 0.12);
+      min-width: 0;
     }
 
     .summary-wrap h2 {
@@ -454,7 +514,12 @@
       padding: 8px 0;
     }
 
-    /* Impression / export PDF : utiliser le navigateur en mode paysage */
+    /* Élément visible uniquement à l'impression */
+    .print-only {
+      display: none;
+    }
+
+    /* Impression / export PDF : titre + semaine + planning seulement */
     @page {
       size: A4 landscape;
       margin: 8mm;
@@ -473,16 +538,20 @@
         padding: 0;
       }
 
+      /* Tout est masqué par défaut, sauf ce qui est explicitement listé. */
       .controls,
       .add-slot-section,
+      .summary-wrap,
       .actions,
       .help,
-      .status-message {
+      .status-message,
+      .week-bar input,
+      .week-bar label {
         display: none !important;
       }
 
       .top-bar {
-        margin-bottom: 8px;
+        margin-bottom: 6px;
       }
 
       h1 {
@@ -494,13 +563,30 @@
         font-size: 10px;
       }
 
-      .planning-wrap,
-      .summary-wrap {
+      .week-bar {
+        background: transparent;
+        border: 0;
+        box-shadow: none;
+        padding: 0;
+        margin-bottom: 6px;
+      }
+
+      .week-label {
+        color: #000;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .print-only {
+        display: block;
+      }
+
+      .planning-wrap {
         box-shadow: none;
         border: 0;
         border-radius: 0;
         padding: 0;
-        margin-bottom: 8px;
+        margin-bottom: 0;
         overflow: visible;
         page-break-inside: avoid;
       }
@@ -508,7 +594,7 @@
       .planning-table {
         min-width: 0;
         width: 100%;
-        font-size: 8.5px;
+        font-size: 9px;
       }
 
       .planning-table thead th {
@@ -516,35 +602,40 @@
         padding: 3px 2px;
       }
 
-      .time-col {
-        width: 72px;
-        padding: 2px;
-      }
-
-      .slot-cell {
-        height: 17px;
-        min-height: 17px;
-        padding: 1px;
-      }
-
-      .chip {
-        font-size: 7.5px;
-        padding: 1px 3px;
-        border-radius: 4px;
-      }
-
-      .summary-wrap h2 {
-        font-size: 13px;
-        margin-bottom: 4px;
-      }
-
-      .summary-table {
+      .day-label {
         font-size: 10px;
       }
 
-      .summary-table th,
-      .summary-table td {
-        padding: 4px 5px;
+      .day-date {
+        font-size: 8.5px;
+      }
+
+      .day-hours {
+        font-size: 8px;
+      }
+
+      .time-col {
+        width: 70px;
+        padding: 2px;
+        font-size: 8.5px;
+      }
+
+      .slot-cell {
+        height: 22px;
+        min-height: 22px;
+        padding: 1px;
+      }
+
+      .chips {
+        gap: 1px;
+        min-height: 0;
+      }
+
+      .chip {
+        font-size: 7px;
+        padding: 0 2px;
+        border-radius: 3px;
+        line-height: 1;
       }
     }
 
@@ -597,7 +688,8 @@
       .controls,
       .add-slot-section,
       .planning-wrap,
-      .summary-wrap {
+      .summary-wrap,
+      .week-bar {
         padding: 12px;
         border-radius: 12px;
       }
@@ -642,8 +734,12 @@
       }
 
       .slot-cell {
-        min-height: 36px;
-        height: 36px;
+        min-height: 70px;
+        height: 70px;
+      }
+
+      .chip {
+        font-size: 11px;
       }
     }
   </style>
@@ -658,6 +754,14 @@
         </p>
       </div>
     </header>
+
+    <section class="week-bar" aria-label="Semaine du planning">
+      <label>
+        Semaine
+        <input type="week" id="weekInput" />
+      </label>
+      <div class="week-label" id="weekLabel"></div>
+    </section>
 
     <section class="controls" aria-label="Gestion des employés">
       <div class="controls-grid">
@@ -674,7 +778,7 @@
             <button type="submit">Ajouter</button>
           </form>
           <p class="help">
-            Astuce : une couleur est proposée automatiquement. Vous pouvez la changer avant ou après l'ajout.
+            Astuce : une couleur est proposée automatiquement. Vous pouvez la changer avant ou après l'ajout. Les employés sont communs à toutes les semaines.
           </p>
         </div>
 
@@ -690,7 +794,7 @@
       <div class="actions">
         <button id="printBtn" type="button">Imprimer / exporter en PDF</button>
         <button id="clearSelectionBtn" type="button" class="secondary">Désélectionner</button>
-        <button id="clearPlanningBtn" type="button" class="secondary">Vider le planning</button>
+        <button id="clearPlanningBtn" type="button" class="secondary">Vider la semaine</button>
         <button id="resetAllBtn" type="button" class="danger">Tout réinitialiser</button>
         <span id="statusMessage" class="status-message" aria-live="polite"></span>
       </div>
@@ -756,6 +860,11 @@
       { key: "dimanche", label: "Dimanche", open: "05:00", close: "14:30" }
     ];
 
+    const MONTHS_FR = [
+      "janvier", "février", "mars", "avril", "mai", "juin",
+      "juillet", "août", "septembre", "octobre", "novembre", "décembre"
+    ];
+
     // Le planning est en créneaux de 30 minutes.
     const SLOT_MINUTES = 30;
 
@@ -770,24 +879,28 @@
       "#bc6c25", "#4d908e", "#b56576", "#277da1"
     ];
 
-    const STORAGE_KEY = "planning-boulangerie-simple-v1";
+    // Clés de stockage local
+    const STORAGE_GLOBAL = "bakery_global";              // employés et préférences
+    const STORAGE_SCHEDULE_PREFIX = "bakery_schedule_";  // un planning par semaine
+    const STORAGE_LEGACY = "planning-boulangerie-simple-v1"; // ancien format
 
     /* ==============================
        État du planning
        ============================== */
 
+    // Globaux (communs à toutes les semaines)
     let employees = [];
-
-    // Format : { "lundi_240": ["idEmploye1", "idEmploye2"] }
-    // 240 = nombre de minutes depuis minuit, ici 04:00.
-    let assignments = {};
-
-    // Plages horaires ajoutées via le formulaire "Ajouter un créneau".
-    // Format : { id, employeeId, day, startMinutes, endMinutes }
-    let ranges = [];
-
     let selectedEmployeeId = null;
     let nextColorIndex = 0;
+
+    // Semaine courante (clé ISO type "2025-W12")
+    let currentWeekKey = "";
+
+    // Données propres à la semaine courante
+    // assignments format : { "lundi_240": ["idEmploye1", "idEmploye2"] }
+    let assignments = {};
+    // ranges : plages ajoutées via "Ajouter un créneau"
+    let ranges = [];
 
     /* ==============================
        Sélection des éléments HTML
@@ -810,8 +923,11 @@
     const slotFormError = document.getElementById("slotFormError");
     const rangesList = document.getElementById("rangesList");
 
+    const weekInput = document.getElementById("weekInput");
+    const weekLabel = document.getElementById("weekLabel");
+
     /* ==============================
-       Fonctions utilitaires
+       Fonctions utilitaires temps
        ============================== */
 
     function timeToMinutes(time) {
@@ -893,34 +1009,187 @@
     }
 
     /* ==============================
-       Sauvegarde locale
+       Gestion des semaines ISO
        ============================== */
 
-    function saveData() {
-      const data = {
-        employees,
-        assignments,
-        ranges,
-        selectedEmployeeId,
-        nextColorIndex
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    // Renvoie { year, week } selon la norme ISO 8601 (semaine commençant le lundi).
+    function getISOWeek(date) {
+      const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+      const dayNum = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      const weekNum = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+      return { year: d.getUTCFullYear(), week: weekNum };
     }
 
-    function loadData() {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (!saved) return;
+    // Format type "2025-W12" (compatible avec <input type="week">).
+    function formatWeekKey(year, week) {
+      return `${year}-W${String(week).padStart(2, "0")}`;
+    }
 
+    function parseWeekKey(key) {
+      const match = key && key.match(/^(\d{4})-W(\d{1,2})$/);
+      if (!match) return null;
+      return { year: Number(match[1]), week: Number(match[2]) };
+    }
+
+    // Renvoie la date du lundi (en UTC) d'une semaine ISO donnée.
+    function isoWeekMonday(year, week) {
+      const jan4 = new Date(Date.UTC(year, 0, 4));
+      const jan4Day = jan4.getUTCDay() || 7;
+      const week1Monday = new Date(jan4);
+      week1Monday.setUTCDate(jan4.getUTCDate() - (jan4Day - 1));
+      const monday = new Date(week1Monday);
+      monday.setUTCDate(week1Monday.getUTCDate() + (week - 1) * 7);
+      return monday;
+    }
+
+    // Liste des dates (lundi à dimanche) pour la semaine courante.
+    function getWeekDates(weekKey) {
+      const parsed = parseWeekKey(weekKey);
+      if (!parsed) return [];
+      const monday = isoWeekMonday(parsed.year, parsed.week);
+      const dates = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setUTCDate(monday.getUTCDate() + i);
+        dates.push(d);
+      }
+      return dates;
+    }
+
+    function formatDateShort(date) {
+      const dd = String(date.getUTCDate()).padStart(2, "0");
+      const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+      return `${dd}/${mm}`;
+    }
+
+    function formatDateLong(date) {
+      const day = date.getUTCDate();
+      const month = MONTHS_FR[date.getUTCMonth()];
+      const year = date.getUTCFullYear();
+      return `${day} ${month} ${year}`;
+    }
+
+    /* ==============================
+       Sauvegarde locale (par semaine)
+       ============================== */
+
+    function scheduleStorageKey(weekKey) {
+      return `${STORAGE_SCHEDULE_PREFIX}${weekKey}`;
+    }
+
+    function saveGlobal() {
+      const data = {
+        employees,
+        selectedEmployeeId,
+        nextColorIndex,
+        currentWeek: currentWeekKey
+      };
+      localStorage.setItem(STORAGE_GLOBAL, JSON.stringify(data));
+    }
+
+    function saveSchedule() {
+      if (!currentWeekKey) return;
+      const data = { assignments, ranges };
+      localStorage.setItem(scheduleStorageKey(currentWeekKey), JSON.stringify(data));
+    }
+
+    // Sauvegarde tout (utilisé par les actions courantes).
+    function saveData() {
+      saveGlobal();
+      saveSchedule();
+    }
+
+    function loadGlobal() {
+      const raw = localStorage.getItem(STORAGE_GLOBAL);
+      if (!raw) return false;
       try {
-        const data = JSON.parse(saved);
+        const data = JSON.parse(raw);
         employees = Array.isArray(data.employees) ? data.employees : [];
-        assignments = data.assignments || {};
-        ranges = Array.isArray(data.ranges) ? data.ranges : [];
         selectedEmployeeId = data.selectedEmployeeId || null;
         nextColorIndex = Number.isInteger(data.nextColorIndex) ? data.nextColorIndex : employees.length;
+        currentWeekKey = data.currentWeek || "";
+        return true;
       } catch (error) {
-        console.warn("Impossible de charger la sauvegarde locale.", error);
+        console.warn("Impossible de charger les données globales.", error);
+        return false;
       }
+    }
+
+    function loadSchedule(weekKey) {
+      const raw = localStorage.getItem(scheduleStorageKey(weekKey));
+      if (!raw) {
+        assignments = {};
+        ranges = [];
+        return;
+      }
+      try {
+        const data = JSON.parse(raw);
+        assignments = data.assignments || {};
+        ranges = Array.isArray(data.ranges) ? data.ranges : [];
+      } catch (error) {
+        console.warn("Impossible de charger le planning de la semaine.", error);
+        assignments = {};
+        ranges = [];
+      }
+    }
+
+    // Si une ancienne sauvegarde existe et qu'aucune nouvelle n'a encore été créée,
+    // on la rapatrie sur la semaine courante pour ne pas perdre les données.
+    function migrateLegacyIfNeeded() {
+      if (localStorage.getItem(STORAGE_GLOBAL)) return;
+      const legacyRaw = localStorage.getItem(STORAGE_LEGACY);
+      if (!legacyRaw) return;
+
+      try {
+        const legacy = JSON.parse(legacyRaw);
+        const today = new Date();
+        const iso = getISOWeek(today);
+        const weekKey = formatWeekKey(iso.year, iso.week);
+
+        const legacyEmployees = Array.isArray(legacy.employees) ? legacy.employees : [];
+        const legacyAssignments = legacy.assignments || {};
+        const legacyRanges = Array.isArray(legacy.ranges) ? legacy.ranges : [];
+
+        localStorage.setItem(STORAGE_GLOBAL, JSON.stringify({
+          employees: legacyEmployees,
+          selectedEmployeeId: legacy.selectedEmployeeId || null,
+          nextColorIndex: Number.isInteger(legacy.nextColorIndex) ? legacy.nextColorIndex : legacyEmployees.length,
+          currentWeek: weekKey
+        }));
+
+        localStorage.setItem(scheduleStorageKey(weekKey), JSON.stringify({
+          assignments: legacyAssignments,
+          ranges: legacyRanges
+        }));
+      } catch (error) {
+        console.warn("Migration de l'ancienne sauvegarde impossible.", error);
+      }
+    }
+
+    function changeWeek(newKey) {
+      if (!parseWeekKey(newKey)) return;
+      // On enregistre la semaine en cours avant de basculer.
+      saveSchedule();
+      currentWeekKey = newKey;
+      loadSchedule(currentWeekKey);
+      saveGlobal();
+      updateWeekUI();
+      renderAll();
+    }
+
+    function updateWeekUI() {
+      weekInput.value = currentWeekKey;
+      const parsed = parseWeekKey(currentWeekKey);
+      if (!parsed) {
+        weekLabel.textContent = "";
+        return;
+      }
+      const dates = getWeekDates(currentWeekKey);
+      const monday = dates[0];
+      const sunday = dates[6];
+      weekLabel.innerHTML = `<strong>Semaine ${parsed.week}</strong> — du lundi ${formatDateLong(monday)} au dimanche ${formatDateLong(sunday)}`;
     }
 
     /* ==============================
@@ -987,25 +1256,45 @@
       });
     }
 
+    // Suppression d'un employé : il est retiré de la liste globale et de TOUTES
+    // les semaines sauvegardées (assignments + ranges).
     function deleteEmployee(employeeId) {
       const employee = getEmployeeById(employeeId);
       const employeeName = employee ? employee.name : "Employé";
 
-      if (!confirm(`Supprimer ${employeeName} et ses créneaux du planning ?`)) {
+      if (!confirm(`Supprimer ${employeeName} et ses créneaux de toutes les semaines ?`)) {
         return;
       }
 
       employees = employees.filter(employee => employee.id !== employeeId);
 
+      // Semaine courante en mémoire
       Object.keys(assignments).forEach(cellKey => {
         assignments[cellKey] = assignments[cellKey].filter(id => id !== employeeId);
         if (assignments[cellKey].length === 0) {
           delete assignments[cellKey];
         }
       });
-
-      // On retire aussi les plages horaires de cet employé.
       ranges = ranges.filter(range => range.employeeId !== employeeId);
+
+      // Toutes les autres semaines stockées
+      Object.keys(localStorage)
+        .filter(key => key.startsWith(STORAGE_SCHEDULE_PREFIX) && key !== scheduleStorageKey(currentWeekKey))
+        .forEach(key => {
+          try {
+            const data = JSON.parse(localStorage.getItem(key));
+            if (!data) return;
+            const a = data.assignments || {};
+            Object.keys(a).forEach(cellKey => {
+              a[cellKey] = a[cellKey].filter(id => id !== employeeId);
+              if (a[cellKey].length === 0) delete a[cellKey];
+            });
+            const r = (data.ranges || []).filter(range => range.employeeId !== employeeId);
+            localStorage.setItem(key, JSON.stringify({ assignments: a, ranges: r }));
+          } catch (error) {
+            // On ignore les semaines corrompues.
+          }
+        });
 
       if (selectedEmployeeId === employeeId) {
         selectedEmployeeId = null;
@@ -1023,12 +1312,19 @@
     function renderPlanningTable() {
       const first = timeToMinutes(FIRST_DISPLAYED_TIME);
       const last = timeToMinutes(LAST_DISPLAYED_TIME);
+      const dates = getWeekDates(currentWeekKey);
 
       let html = "";
       html += "<thead><tr>";
       html += "<th class='time-col'>Horaire</th>";
-      DAYS.forEach(day => {
-        html += `<th>${day.label}<span class="day-hours">${minutesToTime(timeToMinutes(day.open))}-${minutesToTime(timeToMinutes(day.close))}</span></th>`;
+      DAYS.forEach((day, index) => {
+        const date = dates[index];
+        const dateLabel = date ? formatDateShort(date) : "";
+        html += `<th>
+          <span class="day-label">${day.label}</span>
+          ${dateLabel ? `<span class="day-date">${dateLabel}</span>` : ""}
+          <span class="day-hours">${minutesToTime(timeToMinutes(day.open))}-${minutesToTime(timeToMinutes(day.close))}</span>
+        </th>`;
       });
       html += "</tr></thead>";
 
@@ -1049,14 +1345,16 @@
             return;
           }
 
-          const chips = assignedIds
+          // On garde au plus 4 employés par case (limite visuelle de la grille 2x2).
+          const visibleEmployees = assignedIds
             .map(id => getEmployeeById(id))
             .filter(Boolean)
-            .map(employee => {
-              const textColor = getReadableTextColor(employee.color);
-              return `<span class="chip" style="background:${employee.color};color:${textColor};" title="${employee.name} - ${employee.role}">${employee.name}</span>`;
-            })
-            .join("");
+            .slice(0, 4);
+
+          const chips = visibleEmployees.map(employee => {
+            const textColor = getReadableTextColor(employee.color);
+            return `<span class="chip" style="background:${employee.color};color:${textColor};" title="${employee.name} - ${employee.role}">${employee.name}</span>`;
+          }).join("");
 
           html += `<td class="slot-cell" data-day="${day.key}" data-start="${start}" title="Cliquer pour ajouter/retirer l'employé sélectionné"><div class="chips">${chips}</div></td>`;
         });
@@ -1090,6 +1388,10 @@
           delete assignments[cellKey];
         }
       } else {
+        if (currentIds.length >= 4) {
+          showStatus("Maximum 4 employés par créneau.");
+          return;
+        }
         assignments[cellKey] = [...currentIds, selectedEmployeeId];
       }
 
@@ -1134,8 +1436,6 @@
         slotEmployeeSelect.appendChild(option);
       });
 
-      // On garde la sélection précédente si elle est toujours valide,
-      // sinon on prend l'employé sélectionné global, sinon le premier.
       if (employees.some(e => e.id === previousValue)) {
         slotEmployeeSelect.value = previousValue;
       } else if (selectedEmployeeId && employees.some(e => e.id === selectedEmployeeId)) {
@@ -1163,7 +1463,6 @@
       const previousStart = Number(slotStartSelect.value);
       const previousEnd = Number(slotEndSelect.value);
 
-      // Heures de début : du début d'ouverture à (fermeture - 30 min).
       slotStartSelect.innerHTML = "";
       for (let m = open; m < close; m += SLOT_MINUTES) {
         const option = document.createElement("option");
@@ -1172,7 +1471,6 @@
         slotStartSelect.appendChild(option);
       }
 
-      // Heures de fin : de (ouverture + 30 min) à la fermeture.
       slotEndSelect.innerHTML = "";
       for (let m = open + SLOT_MINUTES; m <= close; m += SLOT_MINUTES) {
         const option = document.createElement("option");
@@ -1181,7 +1479,6 @@
         slotEndSelect.appendChild(option);
       }
 
-      // On essaie de conserver les valeurs précédentes si elles restent valides.
       if (previousStart >= open && previousStart < close) {
         slotStartSelect.value = String(previousStart);
       } else {
@@ -1192,7 +1489,6 @@
       if (previousEnd > startVal && previousEnd <= close) {
         slotEndSelect.value = String(previousEnd);
       } else {
-        // Par défaut : début + 4 heures, ou la fermeture si plus court.
         const defaultEnd = Math.min(close, startVal + 4 * 60);
         slotEndSelect.value = String(defaultEnd);
       }
@@ -1208,11 +1504,10 @@
       };
       ranges.push(range);
 
-      // On affecte l'employé à tous les créneaux de 30 min de la plage.
       for (let m = startMinutes; m < endMinutes; m += SLOT_MINUTES) {
         const cellKey = getCellKey(dayKey, m);
         const ids = assignments[cellKey] || [];
-        if (!ids.includes(employeeId)) {
+        if (!ids.includes(employeeId) && ids.length < 4) {
           assignments[cellKey] = [...ids, employeeId];
         }
       }
@@ -1222,7 +1517,6 @@
       const range = ranges.find(r => r.id === rangeId);
       if (!range) return;
 
-      // Autres plages qui pourraient encore couvrir certaines cases.
       const otherRanges = ranges.filter(r =>
         r.id !== rangeId &&
         r.employeeId === range.employeeId &&
@@ -1251,11 +1545,10 @@
       rangesList.innerHTML = "";
 
       if (ranges.length === 0) {
-        rangesList.innerHTML = `<div class="empty-state">Aucun créneau ajouté pour le moment.</div>`;
+        rangesList.innerHTML = `<div class="empty-state">Aucun créneau ajouté pour cette semaine.</div>`;
         return;
       }
 
-      // Tri par jour puis heure de début pour une lecture naturelle.
       const dayOrder = Object.fromEntries(DAYS.map((d, i) => [d.key, i]));
       const sorted = [...ranges].sort((a, b) => {
         const da = dayOrder[a.day] ?? 99;
@@ -1300,7 +1593,7 @@
     }
 
     /* ==============================
-       Récapitulatif des heures
+       Récapitulatif des heures (à l'écran uniquement)
        ============================== */
 
     function renderSummary() {
@@ -1431,19 +1724,21 @@
       showStatus("Aucun employé sélectionné.");
     });
 
+    // "Vider la semaine" : ne touche qu'à la semaine en cours.
     document.getElementById("clearPlanningBtn").addEventListener("click", () => {
-      if (!confirm("Vider uniquement les créneaux du planning ? Les employés seront conservés.")) {
+      if (!confirm("Vider tous les créneaux de la semaine en cours ? Les employés et les autres semaines sont conservés.")) {
         return;
       }
       assignments = {};
       ranges = [];
       saveData();
       renderAll();
-      showStatus("Planning vidé.");
+      showStatus("Semaine vidée.");
     });
 
+    // "Tout réinitialiser" : supprime employés + toutes les semaines.
     document.getElementById("resetAllBtn").addEventListener("click", () => {
-      if (!confirm("Tout réinitialiser : employés, couleurs et planning ?")) {
+      if (!confirm("Tout réinitialiser : employés, couleurs et plannings de toutes les semaines ?")) {
         return;
       }
       employees = [];
@@ -1452,17 +1747,21 @@
       selectedEmployeeId = null;
       nextColorIndex = 0;
       employeeColorInput.value = getNextColor();
-      localStorage.removeItem(STORAGE_KEY);
+
+      // Suppression de toutes les clés de stockage de l'application.
+      Object.keys(localStorage)
+        .filter(key => key === STORAGE_GLOBAL || key === STORAGE_LEGACY || key.startsWith(STORAGE_SCHEDULE_PREFIX))
+        .forEach(key => localStorage.removeItem(key));
+
+      saveData();
       renderAll();
-      showStatus("Planning réinitialisé.");
+      showStatus("Plannings réinitialisés.");
     });
 
-    // Quand le jour change, on rafraîchit les heures disponibles.
     slotDaySelect.addEventListener("change", () => {
       refreshTimeOptions();
     });
 
-    // Quand l'heure de début change, on s'assure que la fin reste après.
     slotStartSelect.addEventListener("change", () => {
       const start = Number(slotStartSelect.value);
       const end = Number(slotEndSelect.value);
@@ -1519,24 +1818,52 @@
       showStatus(`Créneau ajouté pour ${employee.name} (${day.label} ${minutesToHHMM(start)}-${minutesToHHMM(end)}).`);
     });
 
+    // Changement de semaine : sauvegarde l'actuelle puis charge la nouvelle.
+    weekInput.addEventListener("change", () => {
+      const newKey = weekInput.value;
+      if (!parseWeekKey(newKey)) {
+        // Si l'utilisateur efface, on remet la valeur précédente.
+        weekInput.value = currentWeekKey;
+        return;
+      }
+      changeWeek(newKey);
+      showStatus(`Semaine ${parseWeekKey(newKey).week} chargée.`);
+    });
+
     /* ==============================
        Initialisation au chargement
        ============================== */
 
-    loadData();
+    // 1. Migration éventuelle de l'ancienne sauvegarde unique.
+    migrateLegacyIfNeeded();
 
-    // Couleur proposée pour le prochain employé.
+    // 2. Chargement des données globales (employés, semaine en cours).
+    loadGlobal();
+
+    // 3. Si aucune semaine n'est définie, on prend la semaine ISO actuelle.
+    if (!parseWeekKey(currentWeekKey)) {
+      const iso = getISOWeek(new Date());
+      currentWeekKey = formatWeekKey(iso.year, iso.week);
+    }
+
+    // 4. Chargement du planning de la semaine courante.
+    loadSchedule(currentWeekKey);
+
+    // 5. Couleur proposée pour le prochain employé.
     if (!employeeColorInput.value || employeeColorInput.value === "#000000") {
       employeeColorInput.value = COLOR_PALETTE[nextColorIndex % COLOR_PALETTE.length];
     }
 
-    // Si l'employé sélectionné n'existe plus, on désélectionne.
+    // 6. Si l'employé sélectionné n'existe plus, on désélectionne.
     if (selectedEmployeeId && !getEmployeeById(selectedEmployeeId)) {
       selectedEmployeeId = null;
     }
 
+    // 7. Initialisation de l'interface.
     renderDaySelectOptions();
     refreshTimeOptions();
+    updateWeekUI();
+    saveGlobal();
     renderAll();
   </script>
 </body>
