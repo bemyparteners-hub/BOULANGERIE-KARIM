@@ -544,14 +544,21 @@
       display: none;
     }
 
-    /* Impression / export PDF : titre + semaine + planning seulement */
+    /*
+      Impression / export PDF : 1 seule page A4 paysage.
+      Marges réduites, planning étalé sur toute la largeur,
+      hauteurs serrées pour tenir sur une seule feuille.
+    */
     @page {
       size: A4 landscape;
-      margin: 8mm;
+      margin: 5mm;
     }
 
     @media print {
+      html,
       body {
+        margin: 0;
+        padding: 0;
         background: #fff;
         color: #000;
         -webkit-print-color-adjust: exact;
@@ -560,32 +567,35 @@
 
       .page {
         max-width: none;
+        width: 100%;
+        margin: 0;
         padding: 0;
       }
 
-      /* Tout est masqué par défaut, sauf ce qui est explicitement listé. */
+      /* Tout est masqué par défaut sauf ce qui est listé plus bas. */
       .controls,
       .add-slot-section,
       .summary-wrap,
       .actions,
       .help,
       .status-message,
+      .subtitle,
       .week-bar input,
-      .week-bar label {
+      .week-bar label,
+      .day-hours {
         display: none !important;
       }
 
       .top-bar {
-        margin-bottom: 6px;
+        margin: 0 0 1mm;
+        padding: 0;
       }
 
       h1 {
-        font-size: 18px;
-        margin-bottom: 2px;
-      }
-
-      .subtitle {
-        font-size: 10px;
+        font-size: 13px;
+        margin: 0;
+        padding: 0;
+        line-height: 1.15;
       }
 
       .week-bar {
@@ -593,17 +603,14 @@
         border: 0;
         box-shadow: none;
         padding: 0;
-        margin-bottom: 6px;
+        margin: 0 0 1.5mm;
+        display: block;
       }
 
       .week-label {
         color: #000;
-        font-size: 12px;
+        font-size: 10.5px;
         font-weight: 700;
-      }
-
-      .print-only {
-        display: block;
       }
 
       .planning-wrap {
@@ -611,43 +618,46 @@
         border: 0;
         border-radius: 0;
         padding: 0;
-        margin-bottom: 0;
+        margin: 0;
         overflow: visible;
         page-break-inside: avoid;
+        width: 100%;
       }
 
       .planning-table {
         min-width: 0;
         width: 100%;
+        table-layout: fixed;
         font-size: 9px;
+        border-collapse: collapse;
       }
 
       .planning-table thead th {
         position: static;
-        padding: 3px 2px;
+        padding: 1.5px 2px;
+        line-height: 1.1;
       }
 
       .day-label {
-        font-size: 10px;
+        font-size: 9px;
+        font-weight: 700;
       }
 
       .day-date {
-        font-size: 8.5px;
-      }
-
-      .day-hours {
-        font-size: 8px;
+        font-size: 7.5px;
+        margin-top: 0;
       }
 
       .time-col {
-        width: 70px;
-        padding: 2px;
-        font-size: 8.5px;
+        width: 16mm;
+        padding: 1px 2px;
+        font-size: 7.5px;
+        line-height: 1;
       }
 
       .slot-cell {
-        height: 24px;
-        min-height: 24px;
+        height: 20px;
+        min-height: 20px;
         padding: 1px;
       }
 
@@ -657,9 +667,9 @@
       }
 
       .chip {
-        font-size: 7.5px;
+        font-size: 7px;
         padding: 0 2px;
-        border-radius: 3px;
+        border-radius: 2px;
         line-height: 1;
         border-width: 0.5px;
       }
