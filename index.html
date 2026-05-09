@@ -2196,8 +2196,9 @@
     loadEmployees();
     loadSettings();
 
-    // 3. Si aucune semaine n'est définie, on prend la semaine ISO actuelle.
-    if (!parseWeekKey(currentWeekKey)) {
+    // 3. À chaque ouverture, on se positionne sur la semaine ISO d'aujourd'hui.
+    //    Les autres semaines restent accessibles via "Semaines enregistrées".
+    {
       const iso = getISOWeek(new Date());
       currentWeekKey = formatWeekKey(iso.year, iso.week);
     }
